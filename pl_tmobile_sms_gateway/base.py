@@ -3,29 +3,27 @@
 import abc
 import re
 import requests
-from requests.utils import quote
+from requests.compat import quote
 from .exceptions import SmsException
 from .models import GatewayResponse
 
 
-DEFAULT_RETURN_URL = "http://www.t-mobile.pl"
-
 class Base:
+    DEFAULT_RETURN_URL = "http://www.t-mobile.pl"
 
-    def __init__(self, login, password, return_url=DEFAULT_RETURN_URL):
+    def __init__(self, login, password):
         self.login = login
         self.password = password
-        self.return_url = return_url
 
     def send(self, number, message):
         params = {
             "login": self.login,
             "password": self.password,
             "number": number,
-            "message": message,
+            "message": message.encode("ISO-8859-2"),
             "mms": "false",
-            "failure": self.return_url,
-            "success": self.return_url
+            "failure": self.DEFAULT_RETURN_URL,
+            "success": self.DEFAULT_RETURN_URL
         }
         # requests uses internally urllib's quote_plus for url encoding, which results in spaces
         # being encoded to '+'
@@ -43,9 +41,9 @@ class Base:
         pass
 
     def _build_url(self, params):
-        query_parts = ["{}={}".format(name, value) for name, value in params.items()]
+        query_parts = ["{}={}".format(name, quote(value)) for name, value in params.items()]
         query = "&".join(query_parts)
-        return requests.utils.requote_uri("{}?{}".format(self.base_url(), query))
+        return "{}?{}".format(self.base_url(), query)
 
     def _error_code(self, response):
         code = self._parse_location_header(response, "error")
